@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watch">
+<title>Watch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Kalam:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6EAED; --surface:#F7F9FA; --ink:#18212B; --muted:#56636F; --line:#C5CED6;
+  --label:#FCFBF5; --label-ink:#1F2328; --btn:#18212B; --btn-ink:#F7F9FA;
+  --focus:#2D6CB5; --danger:#A3312B; --screen:#0E1216;
+  --s0:#22666B; --s1:#8A6A10; --s2:#5C3F62; --s3:#2F4D7A; --s4:#56652A;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13181E; --surface:#1C232B; --ink:#E3E8ED; --muted:#98A5B2; --line:#2E3843;
+    --label:#EEEBDF; --label-ink:#1F2328; --btn:#E3E8ED; --btn-ink:#13181E;
+    --focus:#7FB0EC; --danger:#F08A80; --screen:#06080A;
+    --s0:#2A7177; --s1:#93721A; --s2:#6A4A70; --s3:#3A5A8A; --s4:#5F7030;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13181E; --surface:#1C232B; --ink:#E3E8ED; --muted:#98A5B2; --line:#2E3843;
+  --label:#EEEBDF; --label-ink:#1F2328; --btn:#E3E8ED; --btn-ink:#13181E;
+  --focus:#7FB0EC; --danger:#F08A80; --screen:#06080A;
+  --s0:#2A7177; --s1:#93721A; --s2:#6A4A70; --s3:#3A5A8A; --s4:#5F7030;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:17px;line-height:1.45;-webkit-text-size-adjust:100%;
+}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+h1{margin:0 0 16px;font-size:clamp(2.2rem,11vw,3rem);font-weight:800;line-height:.95;letter-spacing:-.035em;font-variation-settings:"opsz" 96}
+
+.bar{display:flex;gap:8px}
+.bar input{
+  flex:1;min-width:0;font:inherit;font-size:17px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:48px;
+}
+.bar input::placeholder{color:var(--muted)}
+.btn{
+  font:inherit;font-weight:600;font-size:1rem;border-radius:10px;cursor:pointer;
+  min-height:48px;padding:0 18px;border:1px solid var(--btn);background:var(--btn);color:var(--btn-ink);
+}
+.btn.quiet{background:transparent;color:var(--ink);border-color:var(--line)}
+.msg{margin:8px 2px 0;font-size:.92rem;color:var(--muted);min-height:1.3em}
+.msg.error{color:var(--danger)}
+
+/* Player */
+.screen{
+  margin-top:14px;background:var(--screen);border-radius:12px;overflow:hidden;
+  aspect-ratio:16/9;width:100%;position:relative;
+}
+.screen.vertical{aspect-ratio:9/16;max-width:min(100%,380px);margin-left:auto;margin-right:auto}
+.screen iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.screen .idle{
+  position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;
+  color:#9AA6B2;font-size:.95rem;
+}
+.under{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:10px}
+.now{margin:0;font-weight:600;font-size:1.05rem;overflow-wrap:anywhere}
+.linkish{font:inherit;font-size:.9rem;color:var(--muted);background:none;border:0;padding:6px 0;text-decoration:underline;cursor:pointer}
+.warn{margin:14px 0 0;padding:12px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:.92rem}
+
+/* Recent */
+h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
+.recent{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.tape{position:relative;display:flex;align-items:stretch;border-radius:8px;background:var(--spine);overflow:hidden;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.12)}
+.tape-play{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:9px 10px;background:none;border:0;color:#fff;font:inherit;text-align:left;cursor:pointer}
+.thumb{flex:none;width:96px;aspect-ratio:16/9;border-radius:4px;background:rgba(0,0,0,.25);object-fit:cover;display:block}
+.label{
+  flex:1;min-width:0;display:block;background:var(--label);color:var(--label-ink);border-radius:3px;
+  padding:5px 9px;transform:rotate(var(--tilt));font-family:Kalam,"Marker Felt","Segoe Print",cursive;
+  font-size:1.02rem;line-height:1.25;overflow-wrap:anywhere;box-shadow:0 1px 0 rgba(0,0,0,.15);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.tape-x{flex:none;width:46px;background:rgba(0,0,0,.18);border:0;color:#fff;font-size:1.3rem;cursor:pointer}
+.empty{color:var(--muted);margin:0}
+.clear{margin-top:12px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Watch</h1>
+
+  <form id="form" autocomplete="off" novalidate>
+    <div class="bar">
+      <label class="sr-only" for="link">YouTube link</label>
+      <input id="link" type="url" inputmode="url" placeholder="Paste a YouTube link" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="btn quiet" type="button" id="paste" hidden>Paste</button>
+      <button class="btn" type="submit">Play</button>
+    </div>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </form>
+
+  <p class="warn" id="fileWarn" hidden>This page is open as a file, and YouTube’s player won’t run that way. Put it on a website and open it from there.</p>
+
+  <div class="screen" id="screen">
+    <div class="idle" id="idle">Paste a link above and tap Play.</div>
+  </div>
+  <div class="under" id="under" hidden>
+    <p class="now" id="now"></p>
+    <button class="linkish" type="button" id="swap">Not loading? Try the other player</button>
+  </div>
+
+  <h2>Recent</h2>
+  <ul class="recent" id="recent"></ul>
+  <p class="empty" id="empty">Videos you play will show up here.</p>
+  <button class="btn quiet clear" type="button" id="clear" hidden>Clear recent</button>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "watch.recent.v1", PLAYER_KEY = "watch.player.v1", MAX = 40;
+  var $ = function(id){ return document.getElementById(id); };
+  var linkIn = $("link"), msgEl = $("msg"), screen = $("screen");
+  var current = null;
+  var playerHost = "nocookie";
+  try { if (localStorage.getItem(PLAYER_KEY) === "standard") playerHost = "standard"; } catch(e){}
+
+  if (location.protocol === "file:") $("fileWarn").hidden = false;
+
+  function load(){ try { var r = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(r) ? r : []; } catch(e){ return []; } }
+  function save(list){ try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX))); } catch(e){} }
+  var recent = load();
+
+  /* ---------- Parsing ---------- */
+  var ID = /^[A-Za-z0-9_-]{11}$/, LIST = /^[A-Za-z0-9_-]{2,64}$/;
+  function seconds(t){
+    if (!t) return 0;
+    if (/^\d+$/.test(t)) return +t;
+    var m = String(t).match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+    return m ? (+m[1]||0)*3600 + (+m[2]||0)*60 + (+m[3]||0) : 0;
+  }
+  function parse(raw){
+    var s = (raw || "").trim();
+    if (!s) return null;
+    if (ID.test(s)) return { v: s, list: null, t: 0, vertical: false };
+    var m = s.match(/(https?:\/\/)?((www|m|music)\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\/[^\s]*/i);
+    if (!m) return null;
+    var u;
+    try { u = new URL(/^https?:\/\//i.test(m[0]) ? m[0] : "https://" + m[0]); } catch(e){ return null; }
+    var host = u.hostname.toLowerCase().replace(/^(www|m|music)\./, "");
+    var v = null, vertical = false;
+    if (host === "youtu.be") v = u.pathname.split("/")[1] || null;
+    else if (u.pathname === "/watch") v = u.searchParams.get("v");
+    else {
+      var pm = u.pathname.match(/^\/(shorts|live|embed|v)\/([^/?#]+)/);
+      if (pm) { v = pm[2]; vertical = pm[1] === "shorts"; }
+    }
+    var list = u.searchParams.get("list");
+    if (list && !LIST.test(list)) list = null;
+    if (v && !ID.test(v)) v = null;
+    if (v && list && /^RD/.test(list)) list = null; /* auto-generated mixes don’t embed well */
+    if (!v && !list) return null;
+    return { v: v, list: list, t: seconds(u.searchParams.get("t") || u.searchParams.get("start")), vertical: vertical };
+  }
+
+  /* ---------- Player ---------- */
+  function embedSrc(item){
+    var base = playerHost === "standard" ? "https://www.youtube.com/embed/" : "https://www.youtube-nocookie.com/embed/";
+    var p = new URLSearchParams({ playsinline: "1", rel: "0", autoplay: "1" });
+    if (item.t) p.set("start", String(item.t));
+    if (item.list) p.set("list", item.list);
+    return base + (item.v ? item.v : "videoseries") + "?" + p.toString();
+  }
+  function keyOf(item){ return (item.v || "") + "|" + (item.list || ""); }
+  function titleOf(item){ return item.title || (item.v ? "Video" : "Playlist"); }
+
+  function play(item, opts){
+    opts = opts || {};
+    current = item;
+    screen.classList.toggle("vertical", !!item.vertical);
+    var f = document.createElement("iframe");
+    f.src = embedSrc(item);
+    f.title = titleOf(item);
+    f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen; web-share";
+    f.allowFullscreen = true;
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    screen.replaceChildren(f);
+    $("under").hidden = false;
+    $("now").textContent = item.title || "";
+    document.title = item.title ? item.title + " – Watch" : "Watch";
+
+    var hash = new URLSearchParams();
+    if (item.v) hash.set("v", item.v);
+    if (item.list) hash.set("list", item.list);
+    if (item.t) hash.set("t", String(item.t));
+    if (item.vertical) hash.set("short", "1");
+    try { history.replaceState(null, "", "#" + hash.toString()); } catch(e){}
+
+    remember(item);
+    if (!item.title && item.v) fetchTitle(item);
+    if (!opts.noScroll) screen.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  function remember(item){
+    var k = keyOf(item);
+    var old = recent.filter(function(r){ return keyOf(r) === k; })[0];
+    if (old && !item.title && old.title) item.title = old.title;
+    recent = [ { v: item.v, list: item.list, t: item.t, vertical: !!item.vertical, title: item.title || "", at: Date.now() } ]
+      .concat(recent.filter(function(r){ return keyOf(r) !== k; }));
+    save(recent); renderRecent();
+    if (item.title) { $("now").textContent = item.title; document.title = item.title + " – Watch"; }
+  }
+
+  function fetchTitle(item){
+    var url = "https://www.youtube.com/watch?v=" + item.v;
+    fetch("https://noembed.com/embed?url=" + encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.title) return;
+        item.title = String(d.title).slice(0, 200);
+        recent.forEach(function(r){ if (keyOf(r) === keyOf(item)) r.title = item.title; });
+        save(recent); renderRecent();
+        if (current && keyOf(current) === keyOf(item)) {
+          $("now").textContent = item.title;
+          document.title = item.title + " – Watch";
+        }
+      })
+      .catch(function(){});
+  }
+
+  /* ---------- Recent list ---------- */
+  function hash(s){ var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+  function renderRecent(){
+    var ul = $("recent");
+    var frag = document.createDocumentFragment();
+    recent.forEach(function(r, i){
+      var li = document.createElement("li");
+      li.className = "tape";
+      var h = hash(keyOf(r));
+      li.style.setProperty("--spine", "var(--s" + (h % 5) + ")");
+      li.style.setProperty("--tilt", (((h >> 3) % 7) - 3) * 0.3 + "deg");
+
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "tape-play"; b.dataset.i = i;
+      b.setAttribute("aria-label", "Play " + titleOf(r));
+      if (r.v) {
+        var img = document.createElement("img");
+        img.className = "thumb"; img.alt = ""; img.loading = "lazy";
+        img.src = "https://i.ytimg.com/vi/" + r.v + "/mqdefault.jpg";
+        img.onerror = function(){ img.style.visibility = "hidden"; };
+        b.appendChild(img);
+      }
+      var lab = document.createElement("span");
+      lab.className = "label";
+      lab.textContent = r.title || (r.v ? "Video " + r.v : "Playlist");
+      b.appendChild(lab);
+      li.appendChild(b);
+
+      var x = document.createElement("button");
+      x.type = "button"; x.className = "tape-x"; x.dataset.x = i;
+      x.setAttribute("aria-label", "Remove " + titleOf(r) + " from recent");
+      x.textContent = "×";
+      li.appendChild(x);
+      frag.appendChild(li);
+    });
+    ul.replaceChildren(frag);
+    $("empty").hidden = recent.length > 0;
+    $("clear").hidden = recent.length === 0;
+  }
+
+  $("recent").addEventListener("click", function(e){
+    var x = e.target.closest("[data-x]");
+    if (x) { recent.splice(+x.dataset.x, 1); save(recent); renderRecent(); return; }
+    var b = e.target.closest("[data-i]");
+    if (b) {
+      var r = recent[+b.dataset.i];
+      if (r) play({ v: r.v, list: r.list, t: 0, vertical: r.vertical, title: r.title });
+    }
+  });
+  $("clear").addEventListener("click", function(){ recent = []; save(recent); renderRecent(); });
+
+  /* ---------- Form ---------- */
+  function showMsg(t, err){ msgEl.textContent = t; msgEl.className = "msg" + (err ? " error" : ""); }
+  $("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var item = parse(linkIn.value);
+    if (!item) {
+      showMsg(linkIn.value.trim() ? "That doesn’t look like a YouTube video or playlist link." : "Paste a YouTube link first.", true);
+      linkIn.focus(); return;
+    }
+    showMsg("");
+    linkIn.value = "";
+    linkIn.blur();
+    play(item);
+  });
+
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    var pb = $("paste");
+    pb.hidden = false;
+    pb.addEventListener("click", function(){
+      navigator.clipboard.readText().then(function(t){
+        linkIn.value = (t || "").trim();
+        if (parse(linkIn.value)) $("form").requestSubmit ? $("form").requestSubmit() : $("form").dispatchEvent(new Event("submit", { cancelable: true }));
+        else if (linkIn.value) showMsg("That doesn’t look like a YouTube video or playlist link.", true);
+      }).catch(function(){ linkIn.focus(); });
+    });
+  }
+
+  $("swap").addEventListener("click", function(){
+    playerHost = playerHost === "nocookie" ? "standard" : "nocookie";
+    try { localStorage.setItem(PLAYER_KEY, playerHost); } catch(e){}
+    if (current) play(current, { noScroll: true });
+    showMsg(playerHost === "standard" ? "Switched to the standard player." : "Switched to the privacy-enhanced player.");
+  });
+
+  /* ---------- Links like yoursite/#v=ID ---------- */
+  function fromLocation(){
+    var src = location.hash.replace(/^#/, "") || location.search.replace(/^\?/, "");
+    if (!src) return null;
+    var p = new URLSearchParams(src);
+    var v = p.get("v"), list = p.get("list");
+    if (v && !ID.test(v)) v = null;
+    if (list && !LIST.test(list)) list = null;
+    if (!v && !list) return null;
+    return { v: v, list: list, t: seconds(p.get("t")), vertical: p.get("short") === "1" };
+  }
+  renderRecent();
+  var initial = fromLocation();
+  if (initial) play(initial, { noScroll: true });
+})();
+</script>
+</body>
+</html>
