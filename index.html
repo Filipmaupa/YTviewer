@@ -186,13 +186,15 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
 <script>
 (function(){
   "use strict";
+  /* Your YouTube Data API key: comments then load for everyone without asking for one (see README). */
+  var SITE_API_KEY = "";
   var KEY = "watch.recent.v1", PLAYER_KEY = "watch.player.v1", APIKEY_KEY = "watch.apikey.v1", MAX = 40;
   var $ = function(id){ return document.getElementById(id); };
   var linkIn = $("link"), msgEl = $("msg"), screen = $("screen");
   var current = null;
-  var playerHost = "nocookie", apiKey = "";
+  var playerHost = "nocookie", apiKey = SITE_API_KEY;
   try { if (localStorage.getItem(PLAYER_KEY) === "standard") playerHost = "standard"; } catch(e){}
-  try { apiKey = localStorage.getItem(APIKEY_KEY) || ""; } catch(e){}
+  try { if (!apiKey) apiKey = localStorage.getItem(APIKEY_KEY) || ""; } catch(e){}
 
   if (location.protocol === "file:") $("fileWarn").hidden = false;
 
@@ -321,7 +323,7 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
     if (!info) return { text: "Couldn’t reach YouTube. Check your connection and try again.", retry: true };
     var reason = (info.errors && info.errors[0] && info.errors[0].reason) || "", all = JSON.stringify(info);
     if (reason === "commentsDisabled") return { text: "Comments are turned off for this video." };
-    if (/quotaExceeded|dailyLimitExceeded/.test(reason)) return { text: "This API key has used up today’s YouTube quota. Try again tomorrow." };
+    if (/quotaExceeded|dailyLimitExceeded/.test(reason)) return { text: "Today’s YouTube comment limit has been reached. Try again tomorrow." };
     if (reason === "accessNotConfigured" || /SERVICE_DISABLED/.test(all)) return { text: "Turn on “YouTube Data API v3” for this key in Google Cloud, then try again.", key: true };
     if (/REFERRER|referer/i.test(all)) return { text: "This API key isn’t allowed on this website. Check its website restrictions in Google Cloud.", key: true };
     if (/API_KEY|keyInvalid|API key/i.test(all)) return { text: "YouTube didn’t accept that API key. Check it and try again.", key: true };
@@ -414,7 +416,7 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
   }
   function loadComments(){
     if (!apiKey) { showKeyForm(); return; }
-    $("keyForm").hidden = true; $("cTools").hidden = false; $("cKey").hidden = false;
+    $("keyForm").hidden = true; $("cTools").hidden = false; $("cKey").hidden = !!SITE_API_KEY;
     if (cCtl) cCtl.abort();
     var seq = ++cSeq;
     cCtl = window.AbortController ? new AbortController() : null;
@@ -434,7 +436,7 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
     }, function(err){
       if (seq !== cSeq) return;
       var why = apiError(err);
-      if (why.key) { showKeyForm(why.text); return; }
+      if (why.key && !SITE_API_KEY) { showKeyForm(why.text); return; }
       cShow(why.text, true);
       if (why.retry) { cMore.textContent = "Try again"; cMore.hidden = false; }
     });
@@ -495,7 +497,7 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
     }, function(err){
       var why = apiError(err);
       b.disabled = false;
-      if (why.key) { showKeyForm(why.text); return; }
+      if (why.key && !SITE_API_KEY) { showKeyForm(why.text); return; }
       b.textContent = "Couldn’t load replies. Try again";
     });
   });
