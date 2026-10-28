@@ -45,6 +45,7 @@ body{
 }
 .wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+[hidden]{display:none!important}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 
 h1{margin:0 0 16px;font-size:clamp(2.2rem,11vw,3rem);font-weight:800;line-height:.95;letter-spacing:-.035em;font-variation-settings:"opsz" 96}
@@ -95,6 +96,34 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
 .tape-x{flex:none;width:46px;background:rgba(0,0,0,.18);border:0;color:#fff;font-size:1.3rem;cursor:pointer}
 .empty{color:var(--muted);margin:0}
 .clear{margin-top:12px}
+
+/* Comments */
+.comments{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.comments summary{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 16px;
+  font-weight:800;font-size:1.1rem;letter-spacing:-.02em;cursor:pointer;list-style:none;border-radius:12px;
+}
+.comments summary::-webkit-details-marker{display:none}
+.comments summary::after{content:"";flex:none;width:9px;height:9px;margin-top:-4px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.comments[open] summary::after{margin-top:4px;transform:rotate(-135deg)}
+.c-body{padding:0 16px 12px;border-top:1px solid var(--line)}
+.c-key{padding-top:14px}
+.c-key p{margin:0 0 10px;font-size:.95rem}
+.c-key a{color:inherit}
+.c-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding-top:12px;font-size:.92rem;color:var(--muted)}
+.c-tools select{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;min-height:44px;padding:0 10px}
+.c-list{list-style:none;margin:0;padding:0}
+.c{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.c:last-child{border-bottom:0}
+.c-av{display:block;width:36px;height:36px;border-radius:50%;background:var(--line);object-fit:cover}
+.c-meta{margin:0;display:flex;flex-wrap:wrap;gap:0 8px;font-size:.85rem;color:var(--muted)}
+.c-who{font-weight:600;color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+.c-text{margin:2px 0 0;font-size:.97rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.c-likes{margin:4px 0 0;font-size:.85rem;color:var(--muted)}
+.c-replies{padding:10px 0;color:var(--focus);font-weight:600;text-decoration:none}
+.c-thread .c{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:10px 0;border:0}
+.c-thread .c-av{width:28px;height:28px}
+.c-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 </style>
 </head>
 <body>
@@ -121,6 +150,33 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
     <button class="linkish" type="button" id="swap">Not loading? Try the other player</button>
   </div>
 
+  <details class="comments" id="comments" hidden>
+    <summary>Comments</summary>
+    <div class="c-body">
+      <form class="c-key" id="keyForm" autocomplete="off" novalidate hidden>
+        <p>Comments come from YouTube’s Data API, which needs a free API key (<a href="https://developers.google.com/youtube/v3/getting-started" target="_blank" rel="noopener">how to get one</a>). It’s saved only in this browser.</p>
+        <div class="bar">
+          <label class="sr-only" for="key">YouTube Data API key</label>
+          <input id="key" type="text" placeholder="Paste your API key" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button class="btn" type="submit">Save</button>
+        </div>
+      </form>
+      <div class="c-tools" id="cTools" hidden>
+        <label for="cOrder">Sort by</label>
+        <select id="cOrder">
+          <option value="relevance">Top</option>
+          <option value="time">Newest</option>
+        </select>
+      </div>
+      <ol class="c-list" id="cList"></ol>
+      <p class="msg" id="cMsg" role="status" aria-live="polite"></p>
+      <div class="c-foot">
+        <button class="btn quiet" type="button" id="cMore" hidden>More comments</button>
+        <button class="linkish" type="button" id="cKey" hidden>Change API key</button>
+      </div>
+    </div>
+  </details>
+
   <h2>Recent</h2>
   <ul class="recent" id="recent"></ul>
   <p class="empty" id="empty">Videos you play will show up here.</p>
@@ -130,12 +186,15 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
 <script>
 (function(){
   "use strict";
-  var KEY = "watch.recent.v1", PLAYER_KEY = "watch.player.v1", MAX = 40;
+  /* Your YouTube Data API key: comments then load for everyone without asking for one (see README). */
+  var SITE_API_KEY = "AIzaSyC_Z7H3M5Cv8QDNDIjF3tAysByqCQxuLwc";
+  var KEY = "watch.recent.v1", PLAYER_KEY = "watch.player.v1", APIKEY_KEY = "watch.apikey.v1", MAX = 40;
   var $ = function(id){ return document.getElementById(id); };
   var linkIn = $("link"), msgEl = $("msg"), screen = $("screen");
   var current = null;
-  var playerHost = "nocookie";
+  var playerHost = "nocookie", apiKey = SITE_API_KEY;
   try { if (localStorage.getItem(PLAYER_KEY) === "standard") playerHost = "standard"; } catch(e){}
+  try { if (!apiKey) apiKey = localStorage.getItem(APIKEY_KEY) || ""; } catch(e){}
 
   if (location.protocol === "file:") $("fileWarn").hidden = false;
 
@@ -198,6 +257,7 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
     f.referrerPolicy = "strict-origin-when-cross-origin";
     screen.replaceChildren(f);
     $("under").hidden = false;
+    commentsFor(item);
     $("now").textContent = item.title || "";
     document.title = item.title ? item.title + " – Watch" : "Watch";
 
@@ -239,6 +299,208 @@ h2{margin:34px 0 12px;font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
       })
       .catch(function(){});
   }
+
+  /* ---------- Comments ---------- */
+  var cBox = $("comments"), cList = $("cList"), cMsg = $("cMsg"), cMore = $("cMore");
+  var cVideo = null, cNext = null, cLoaded = false, cSeq = 0, cCtl = null;
+  var rtf = window.Intl && Intl.RelativeTimeFormat ? new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }) : null;
+  var nf = window.Intl ? new Intl.NumberFormat(undefined, { notation: "compact" }) : null;
+
+  function api(path, params, signal){
+    params.key = apiKey;
+    return fetch("https://www.googleapis.com/youtube/v3/" + path + "?" + new URLSearchParams(params).toString(), { signal: signal })
+      .then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(d){
+          if (r.ok && d && !d.error) return d;
+          var err = new Error("YouTube API error " + r.status);
+          err.info = (d && d.error) || { code: r.status };
+          throw err;
+        });
+      });
+  }
+  function apiError(err){
+    var info = err && err.info;
+    if (!info) return { text: "Couldn’t reach YouTube. Check your connection and try again.", retry: true };
+    var reason = (info.errors && info.errors[0] && info.errors[0].reason) || "", all = JSON.stringify(info);
+    if (reason === "commentsDisabled") return { text: "Comments are turned off for this video." };
+    if (/quotaExceeded|dailyLimitExceeded/.test(reason)) return { text: "Today’s YouTube comment limit has been reached. Try again tomorrow." };
+    if (reason === "accessNotConfigured" || /SERVICE_DISABLED/.test(all)) return { text: "Turn on “YouTube Data API v3” for this key in Google Cloud, then try again.", key: true };
+    if (/REFERRER|referer/i.test(all)) return { text: "This API key isn’t allowed on this website. Check its website restrictions in Google Cloud.", key: true };
+    if (/API_KEY|keyInvalid|API key/i.test(all)) return { text: "YouTube didn’t accept that API key. Check it and try again.", key: true };
+    if (reason === "videoNotFound" || info.code === 404) return { text: "Couldn’t find comments for this video." };
+    return { text: "Couldn’t load comments right now.", retry: true };
+  }
+
+  function ago(iso){
+    var d = new Date(iso), s = (d.getTime() - Date.now()) / 1000;
+    if (isNaN(s)) return "";
+    if (!rtf) return d.toLocaleDateString();
+    var units = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
+    for (var i = 0; i < units.length; i++) {
+      var n = Math.floor(Math.abs(s) / units[i][1]);
+      if (n >= 1) return rtf.format(s < 0 ? -n : n, units[i][0]);
+    }
+    return rtf.format(0, "second");
+  }
+  function count(n){ return nf ? nf.format(n) : String(n); }
+  function safeUrl(u){ return /^https?:\/\//i.test(u || "") ? String(u).replace(/^http:/i, "https:") : ""; }
+
+  function commentEl(c){
+    var li = document.createElement("li");
+    li.className = "c";
+    var img = document.createElement("img");
+    img.className = "c-av"; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+    img.onerror = function(){ img.removeAttribute("src"); };
+    if (safeUrl(c.authorProfileImageUrl)) img.src = safeUrl(c.authorProfileImageUrl);
+    li.appendChild(img);
+
+    var main = document.createElement("div");
+    main.className = "c-main";
+    var meta = document.createElement("p");
+    meta.className = "c-meta";
+    var channel = safeUrl(c.authorChannelUrl);
+    var who = document.createElement(channel ? "a" : "span");
+    who.className = "c-who";
+    who.textContent = c.authorDisplayName || "Someone";
+    if (channel) { who.href = channel; who.target = "_blank"; who.rel = "noopener"; }
+    meta.appendChild(who);
+    var when = document.createElement("time");
+    when.dateTime = c.publishedAt || "";
+    when.textContent = ago(c.publishedAt) + (c.updatedAt && c.updatedAt !== c.publishedAt ? " (edited)" : "");
+    if (c.publishedAt) when.title = new Date(c.publishedAt).toLocaleString();
+    meta.appendChild(when);
+    main.appendChild(meta);
+
+    var text = document.createElement("p");
+    text.className = "c-text";
+    text.textContent = c.textDisplay || c.textOriginal || "";
+    main.appendChild(text);
+    var likes = +c.likeCount || 0;
+    if (likes) {
+      var l = document.createElement("p");
+      l.className = "c-likes";
+      l.textContent = count(likes) + (likes === 1 ? " like" : " likes");
+      main.appendChild(l);
+    }
+    li.appendChild(main);
+    return li;
+  }
+  function threadEl(t){
+    var s = t.snippet || {}, top = s.topLevelComment || {};
+    var li = commentEl(top.snippet || {}), n = +s.totalReplyCount || 0;
+    if (n && top.id) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "linkish c-replies";
+      b.dataset.parent = top.id;
+      b.dataset.label = n === 1 ? "1 reply" : count(n) + " replies";
+      b.textContent = b.dataset.label;
+      b.setAttribute("aria-expanded", "false");
+      li.lastChild.appendChild(b);
+    }
+    return li;
+  }
+
+  function cShow(t, err){ cMsg.textContent = t; cMsg.className = "msg" + (err ? " error" : ""); }
+  function cReset(){
+    cSeq++;
+    if (cCtl) { cCtl.abort(); cCtl = null; }
+    cList.replaceChildren(); cNext = null; cLoaded = false;
+    cMore.hidden = true; cShow("");
+  }
+  function showKeyForm(err){
+    cReset();
+    $("cTools").hidden = true; $("cKey").hidden = true;
+    $("keyForm").hidden = false;
+    $("key").value = apiKey;
+    cShow(err || "", !!err);
+  }
+  function loadComments(){
+    if (!apiKey) { showKeyForm(); return; }
+    $("keyForm").hidden = true; $("cTools").hidden = false; $("cKey").hidden = !!SITE_API_KEY;
+    if (cCtl) cCtl.abort();
+    var seq = ++cSeq;
+    cCtl = window.AbortController ? new AbortController() : null;
+    var p = { part: "snippet", videoId: cVideo, maxResults: "20", order: $("cOrder").value, textFormat: "plainText" };
+    if (cNext) p.pageToken = cNext;
+    cMore.hidden = true;
+    cShow("Loading comments…");
+    api("commentThreads", p, cCtl && cCtl.signal).then(function(d){
+      if (seq !== cSeq) return;
+      cLoaded = true;
+      var frag = document.createDocumentFragment();
+      (d.items || []).forEach(function(t){ frag.appendChild(threadEl(t)); });
+      cList.appendChild(frag);
+      cNext = d.nextPageToken || null;
+      cMore.textContent = "More comments"; cMore.hidden = !cNext;
+      cShow(cList.childElementCount ? "" : "No comments yet.");
+    }, function(err){
+      if (seq !== cSeq) return;
+      var why = apiError(err);
+      if (why.key && !SITE_API_KEY) { showKeyForm(why.text); return; }
+      cShow(why.text, true);
+      if (why.retry) { cMore.textContent = "Try again"; cMore.hidden = false; }
+    });
+  }
+  function commentsFor(item){
+    cBox.hidden = !item.v;
+    if (item.v === cVideo) return;
+    cVideo = item.v;
+    cReset();
+    if (cVideo && cBox.open && $("keyForm").hidden) loadComments();
+  }
+
+  cBox.addEventListener("toggle", function(){
+    if (cBox.open && cVideo && !cLoaded && $("keyForm").hidden) loadComments();
+  });
+  cMore.addEventListener("click", function(){ loadComments(); });
+  $("cOrder").addEventListener("change", function(){ cReset(); loadComments(); });
+  $("cKey").addEventListener("click", function(){ showKeyForm(); $("key").focus(); });
+  $("keyForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var k = $("key").value.trim();
+    if (!k) { cShow("Paste an API key first.", true); $("key").focus(); return; }
+    apiKey = k;
+    try { localStorage.setItem(APIKEY_KEY, k); } catch(err){}
+    $("key").blur();
+    loadComments();
+  });
+
+  cList.addEventListener("click", function(e){
+    var b = e.target.closest("[data-parent]");
+    if (!b || b.disabled) return;
+    var box = b.nextElementSibling;
+    if (box) {
+      box.hidden = !box.hidden;
+      b.textContent = box.hidden ? b.dataset.label : "Hide replies";
+      b.setAttribute("aria-expanded", String(!box.hidden));
+      return;
+    }
+    var v = cVideo;
+    b.disabled = true; b.textContent = "Loading replies…";
+    api("comments", { part: "snippet", parentId: b.dataset.parent, maxResults: "100", textFormat: "plainText" }).then(function(d){
+      var thread = document.createElement("div"), ol = document.createElement("ol");
+      thread.className = "c-thread"; ol.className = "c-list";
+      (d.items || []).map(function(r){ return r.snippet || {}; })
+        .sort(function(x, y){ return (Date.parse(x.publishedAt) || 0) - (Date.parse(y.publishedAt) || 0); })
+        .forEach(function(r){ ol.appendChild(commentEl(r)); });
+      thread.appendChild(ol);
+      if (d.nextPageToken) {
+        var a = document.createElement("a");
+        a.className = "linkish"; a.target = "_blank"; a.rel = "noopener";
+        a.href = "https://www.youtube.com/watch?v=" + v + "&lc=" + encodeURIComponent(b.dataset.parent);
+        a.textContent = "See all replies on YouTube";
+        thread.appendChild(a);
+      }
+      b.parentNode.insertBefore(thread, b.nextSibling);
+      b.disabled = false; b.textContent = "Hide replies";
+      b.setAttribute("aria-expanded", "true");
+    }, function(err){
+      var why = apiError(err);
+      b.disabled = false;
+      if (why.key && !SITE_API_KEY) { showKeyForm(why.text); return; }
+      b.textContent = "Couldn’t load replies. Try again";
+    });
+  });
 
   /* ---------- Recent list ---------- */
   function hash(s){ var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
